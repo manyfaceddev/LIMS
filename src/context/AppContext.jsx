@@ -10,7 +10,7 @@ import {
 } from '../utils/scheduling.js';
 import { computeEndDate } from '../utils/dates.js';
 
-const STORAGE_KEY = 'rdlab_scheduler_data';
+const STORAGE_KEY = 'ADRIC_scheduler_data';
 
 // ─── Reducer ────────────────────────────────────────────────────────────────
 

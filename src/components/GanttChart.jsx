@@ -143,12 +143,9 @@ export default function GanttChart({
             {/* Month spans */}
             {months.map((m) => {
               const mStart = m > startDate ? m : startDate;
-              const nextMonth = addDays(
-                formatDate(new Date(m.slice(0, 7) + '-01T00:00:00').setMonth(
-                  new Date(m.slice(0, 7) + '-01T00:00:00').getMonth() + 1
-                )),
-                0
-              );
+              const nextMonthDate = new Date(m.slice(0, 7) + '-01T00:00:00');
+              nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+              const nextMonth = formatDate(nextMonthDate);
               const mEnd = nextMonth <= endDate ? addDays(nextMonth, -1) : endDate;
               const mDays = daysBetween(mStart, mEnd);
               const left = getLeft(mStart);

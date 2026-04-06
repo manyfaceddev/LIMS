@@ -24,7 +24,7 @@ export default function Sidebar() {
             <Beaker size={18} className="text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white leading-tight">RDLab</p>
+            <p className="text-sm font-bold text-white leading-tight">ADRIC</p>
             <p className="text-xs text-slate-400 leading-tight">Scheduler</p>
           </div>
         </div>
