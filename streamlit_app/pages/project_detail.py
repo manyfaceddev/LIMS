@@ -146,12 +146,20 @@ def render_project_detail(projects):
         )
         fig.update_yaxes(autorange="reversed")
         today_str = datetime.now().date().strftime("%Y-%m-%d")
-        fig.add_vline(
-            x=today_str,
-            line_dash="dash",
-            line_color="red",
-            annotation_text="Today",
-            annotation_position="top left",
+        fig.add_shape(
+            type="line",
+            x0=today_str, x1=today_str,
+            y0=0, y1=1,
+            xref="x", yref="paper",
+            line=dict(color="red", width=2, dash="dash"),
+        )
+        fig.add_annotation(
+            x=today_str, y=1,
+            xref="x", yref="paper",
+            text="Today",
+            showarrow=False,
+            yanchor="bottom",
+            font=dict(color="red", size=11),
         )
         fig.update_layout(margin=dict(l=10, r=10, t=60, b=10))
         st.plotly_chart(fig, use_container_width=True)

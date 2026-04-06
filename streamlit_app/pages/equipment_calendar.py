@@ -86,7 +86,7 @@ def render_equipment_calendar(projects):
         })
 
     # ── Gantt Chart ───────────────────────────────────────────────────────────
-    st.subheader(f"Equipment Schedule ({len(gantt_rows)} bookings)")
+    st.subheader(f"Equipment Schedule ({len(gantt_rows)} Bookings)")
 
     if gantt_rows:
         df_gantt = pd.DataFrame(gantt_rows)
@@ -124,14 +124,21 @@ def render_equipment_calendar(projects):
             ]
         )
         # Today line
-        fig.add_vline(
-            x=today.strftime("%Y-%m-%d"),
-            line_dash="dash",
-            line_color="red",
-            line_width=2,
-            annotation_text="Today",
-            annotation_position="top left",
-            annotation_font_color="red",
+        today_str_cal = today.strftime("%Y-%m-%d")
+        fig.add_shape(
+            type="line",
+            x0=today_str_cal, x1=today_str_cal,
+            y0=0, y1=1,
+            xref="x", yref="paper",
+            line=dict(color="red", width=2, dash="dash"),
+        )
+        fig.add_annotation(
+            x=today_str_cal, y=1,
+            xref="x", yref="paper",
+            text="Today",
+            showarrow=False,
+            yanchor="bottom",
+            font=dict(color="red", size=11),
         )
         fig.update_layout(
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),

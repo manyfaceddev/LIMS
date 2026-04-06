@@ -122,12 +122,20 @@ def render_dashboard(projects):
             height=max(400, len(gantt_rows) * 28 + 100),
         )
         fig.update_yaxes(autorange="reversed")
-        fig.add_vline(
-            x=today_str,
-            line_dash="dash",
-            line_color="red",
-            annotation_text="Today",
-            annotation_position="top left",
+        fig.add_shape(
+            type="line",
+            x0=today_str, x1=today_str,
+            y0=0, y1=1,
+            xref="x", yref="paper",
+            line=dict(color="red", width=2, dash="dash"),
+        )
+        fig.add_annotation(
+            x=today_str, y=1,
+            xref="x", yref="paper",
+            text="Today",
+            showarrow=False,
+            yanchor="bottom",
+            font=dict(color="red", size=11),
         )
         fig.update_layout(
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
