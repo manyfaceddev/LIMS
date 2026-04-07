@@ -13,18 +13,22 @@ def format_date_display(date_str):
 def status_color(status):
     return {
         "Draft": "gray",
-        "Scheduled": "blue",
+        "Pending Approval": "orange",
+        "Approved": "blue",
         "Active": "green",
-        "Completed": "orange",
+        "Completed": "purple",
+        "Cancelled": "red",
     }.get(status, "gray")
 
 
 def status_badge_html(status):
     color_map = {
-        "Draft": ("#6c757d", "#fff"),
-        "Scheduled": ("#0d6efd", "#fff"),
-        "Active": ("#198754", "#fff"),
-        "Completed": ("#fd7e14", "#fff"),
+        "Draft":            ("#6c757d", "#fff"),
+        "Pending Approval": ("#fd7e14", "#fff"),
+        "Approved":         ("#0d6efd", "#fff"),
+        "Active":           ("#198754", "#fff"),
+        "Completed":        ("#6f42c1", "#fff"),
+        "Cancelled":        ("#dc3545", "#fff"),
     }
     bg, fg = color_map.get(status, ("#6c757d", "#fff"))
     return (

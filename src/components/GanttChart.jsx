@@ -307,11 +307,12 @@ export default function GanttChart({
                   const width = getWidth(duration);
                   const color = getColor(booking.projectId);
                   const conflict = hasConflict(booking);
+                  const isTentative = booking.confirmed === false;
 
                   return (
                     <div
                       key={booking.id}
-                      title={`${booking.projectName || 'Project'}\n${formatDisplayDate(booking.startDate)} — ${formatDisplayDate(booking.endDate)}\n${booking.durationDays} days`}
+                      title={`${booking.projectName || 'Project'}${isTentative ? ' (Tentative)' : ''}\n${formatDisplayDate(booking.startDate)} — ${formatDisplayDate(booking.endDate)}\n${booking.durationDays} days`}
                       style={{
                         position: 'absolute',
                         left,
@@ -319,7 +320,8 @@ export default function GanttChart({
                         height: ROW_HEIGHT - 10,
                         top: 5,
                         borderRadius: 5,
-                        backgroundColor: color,
+                        backgroundColor: isTentative ? 'transparent' : color,
+                        border: isTentative ? `2px dashed ${color}` : 'none',
                         zIndex: 5,
                         display: 'flex',
                         alignItems: 'center',
@@ -327,20 +329,20 @@ export default function GanttChart({
                         paddingRight: 6,
                         overflow: 'hidden',
                         cursor: 'default',
-                        boxShadow: conflict ? `0 0 0 2px #ef4444, 0 1px 3px rgba(0,0,0,0.2)` : '0 1px 3px rgba(0,0,0,0.15)',
-                        opacity: 0.9,
+                        boxShadow: conflict ? `0 0 0 2px #ef4444, 0 1px 3px rgba(0,0,0,0.2)` : isTentative ? 'none' : '0 1px 3px rgba(0,0,0,0.15)',
+                        opacity: isTentative ? 0.75 : 0.9,
                       }}
                     >
                       <span
-                        className="text-white font-medium truncate"
-                        style={{ fontSize: 10, lineHeight: 1 }}
+                        style={{ fontSize: 10, lineHeight: 1, color: isTentative ? color : 'white', fontWeight: 500 }}
+                        className="truncate"
                       >
-                        {booking.projectName || booking.projectId}
+                        {isTentative ? '~ ' : ''}{booking.projectName || booking.projectId}
                       </span>
                       {conflict && (
                         <span
-                          className="ml-1 text-red-100 font-bold shrink-0"
-                          style={{ fontSize: 10 }}
+                          className="ml-1 font-bold shrink-0"
+                          style={{ fontSize: 10, color: isTentative ? color : '#fecaca' }}
                         >
                           !
                         </span>

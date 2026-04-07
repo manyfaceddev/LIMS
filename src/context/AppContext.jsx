@@ -6,11 +6,15 @@ import {
   checkConflict,
   findNextAvailableDate,
   flattenBookings,
+  flattenConfirmedBookings,
   generateId,
 } from '../utils/scheduling.js';
 import { computeEndDate } from '../utils/dates.js';
 
 const STORAGE_KEY = 'ADRIC_scheduler_data';
+
+// Draft-phase statuses — bookings are tentative, not yet reserving equipment
+const DRAFT_PHASE_STATUSES = new Set(['Draft', 'Pending Approval', 'Approved']);
 
 // ─── Reducer ────────────────────────────────────────────────────────────────
 
@@ -42,6 +46,45 @@ function reducer(state, action) {
       return {
         ...state,
         projects: state.projects.filter((p) => p.id !== action.payload),
+      };
+    }
+
+    case 'TRANSITION_STATUS': {
+      return {
+        ...state,
+        projects: state.projects.map((p) =>
+          p.id === action.payload.projectId
+            ? { ...p, status: action.payload.status }
+            : p
+        ),
+      };
+    }
+
+    // Apply the full set of conflict-resolved + confirmed bookings to a project,
+    // and advance its status to 'Active'.
+    case 'APPLY_CONFIRMED_BOOKINGS': {
+      const { projectId, resolvedBookings } = action.payload;
+      // Build lookup: deliverableId -> bookingId -> resolved booking
+      const byDel = {};
+      for (const { deliverableId, booking } of resolvedBookings) {
+        if (!byDel[deliverableId]) byDel[deliverableId] = {};
+        byDel[deliverableId][booking.id] = booking;
+      }
+      return {
+        ...state,
+        projects: state.projects.map((p) => {
+          if (p.id !== projectId) return p;
+          return {
+            ...p,
+            status: 'Active',
+            deliverables: (p.deliverables || []).map((d) => ({
+              ...d,
+              bookings: (d.bookings || []).map((b) =>
+                byDel[d.id]?.[b.id] ? byDel[d.id][b.id] : b
+              ),
+            })),
+          };
+        }),
       };
     }
 
@@ -216,8 +259,14 @@ export function AppProvider({ children }) {
     return map;
   }, []);
 
-  // Derived: all bookings flat
+  // Derived: all bookings flat (for display/Gantt)
   const allBookings = useMemo(() => flattenBookings(state.projects), [state.projects]);
+
+  // Derived: confirmed bookings only (for conflict detection)
+  const confirmedBookings = useMemo(
+    () => flattenConfirmedBookings(state.projects),
+    [state.projects]
+  );
 
   // ─── Actions ──────────────────────────────────────────────────────────────
 
@@ -234,6 +283,72 @@ export function AppProvider({ children }) {
     dispatch({ type: 'DELETE_PROJECT', payload: projectId });
   }
 
+  /** Move a project through the workflow status pipeline. */
+  function transitionStatus(projectId, newStatus) {
+    dispatch({ type: 'TRANSITION_STATUS', payload: { projectId, status: newStatus } });
+  }
+
+  /**
+   * Preview the result of confirming all tentative bookings on an Approved project.
+   * Runs conflict resolution against confirmed bookings from OTHER projects,
+   * and also prevents intra-project equipment double-booking.
+   *
+   * Returns { scheduled: [], rescheduled: [{ booking, eqName, originalStart, originalEnd, newStart, newEnd }], resolvedBookings: [] }
+   * Does NOT commit anything — call applyConfirmedBookings() to commit.
+   */
+  function previewConfirmBookings(projectId) {
+    const project = state.projects.find((p) => p.id === projectId);
+    if (!project) return null;
+
+    // Confirmed bookings from other projects only
+    const otherConfirmed = confirmedBookings.filter((b) => b.projectId !== projectId);
+
+    const scheduled = [];
+    const rescheduled = [];
+    const resolvedBookings = [];
+    const addedSoFar = []; // track intra-project confirmed slots as we go
+
+    for (const deliverable of (project.deliverables || [])) {
+      for (const booking of (deliverable.bookings || [])) {
+        const checkPool = [...otherConfirmed, ...addedSoFar];
+        const endDate = computeEndDate(booking.startDate, booking.durationDays);
+        const conflicts = checkConflict(checkPool, booking.equipmentId, booking.startDate, endDate, null);
+
+        if (conflicts.length === 0) {
+          const resolved = { ...booking, confirmed: true, endDate, autoScheduled: false };
+          scheduled.push(booking);
+          resolvedBookings.push({ deliverableId: deliverable.id, booking: resolved });
+          addedSoFar.push({ ...resolved, projectId });
+        } else {
+          const newStart = findNextAvailableDate(
+            checkPool, booking.equipmentId, booking.startDate, booking.durationDays, null
+          );
+          const newEnd = computeEndDate(newStart, booking.durationDays);
+          const eq = equipmentMap[booking.equipmentId];
+          rescheduled.push({
+            booking,
+            eqName: eq?.name || booking.equipmentId,
+            originalStart: booking.startDate,
+            originalEnd: endDate,
+            newStart,
+            newEnd,
+            conflictProject: conflicts[0]?.projectName || 'another project',
+          });
+          const resolved = { ...booking, confirmed: true, startDate: newStart, endDate: newEnd, autoScheduled: true };
+          resolvedBookings.push({ deliverableId: deliverable.id, booking: resolved });
+          addedSoFar.push({ ...resolved, projectId });
+        }
+      }
+    }
+
+    return { scheduled, rescheduled, resolvedBookings };
+  }
+
+  /** Commit confirmed bookings and advance project to Active. */
+  function applyConfirmedBookings(projectId, resolvedBookings) {
+    dispatch({ type: 'APPLY_CONFIRMED_BOOKINGS', payload: { projectId, resolvedBookings } });
+  }
+
   function addDeliverable(projectId, deliverable) {
     dispatch({ type: 'ADD_DELIVERABLE', payload: { projectId, deliverable } });
   }
@@ -247,39 +362,67 @@ export function AppProvider({ children }) {
   }
 
   /**
-   * Add a booking with conflict checking.
-   * Returns { success, conflicts, booking }
+   * Add a booking, with behaviour depending on project phase:
+   *
+   * Draft / Pending Approval / Approved (tentative phase):
+   *   - Checks against confirmedBookings only
+   *   - Auto-schedules to next available if conflict found
+   *   - Stores booking as confirmed: false
+   *   - Always returns { success: true, booking, wasRescheduled }
+   *
+   * Active / Completed (confirmed phase):
+   *   - Checks against confirmedBookings
+   *   - Returns { success: false, conflicts } if conflict exists (user must resolve)
+   *   - Stores booking as confirmed: true on success
    */
   function addBooking(projectId, deliverableId, booking) {
+    const project = state.projects.find((p) => p.id === projectId);
+    const isDraftPhase = !project || DRAFT_PHASE_STATUSES.has(project.status);
     const endDate = booking.endDate || computeEndDate(booking.startDate, booking.durationDays);
-    const bookingWithEnd = { ...booking, endDate };
 
-    const conflicts = checkConflict(
-      allBookings,
-      booking.equipmentId,
-      booking.startDate,
-      endDate,
-      null
-    );
+    if (isDraftPhase) {
+      // Check against confirmed bookings only; auto-schedule if needed
+      const conflicts = checkConflict(confirmedBookings, booking.equipmentId, booking.startDate, endDate, null);
+      let finalStart = booking.startDate;
+      let wasRescheduled = false;
+
+      if (conflicts.length > 0) {
+        finalStart = findNextAvailableDate(
+          confirmedBookings, booking.equipmentId, booking.startDate, booking.durationDays, null
+        );
+        wasRescheduled = true;
+      }
+
+      const finalEnd = computeEndDate(finalStart, booking.durationDays);
+      const bookingFinal = {
+        ...booking,
+        id: booking.id || generateId('bkg'),
+        startDate: finalStart,
+        endDate: finalEnd,
+        confirmed: false,
+        autoScheduled: wasRescheduled,
+      };
+      dispatch({ type: 'ADD_BOOKING', payload: { projectId, deliverableId, booking: bookingFinal } });
+      return { success: true, booking: bookingFinal, wasRescheduled, conflicts };
+    }
+
+    // Active project: hard conflict check against confirmed bookings
+    const bookingWithEnd = { ...booking, endDate };
+    const conflicts = checkConflict(confirmedBookings, booking.equipmentId, booking.startDate, endDate, null);
 
     if (conflicts.length > 0) {
       return { success: false, conflicts, booking: bookingWithEnd };
     }
 
-    dispatch({
-      type: 'ADD_BOOKING',
-      payload: { projectId, deliverableId, booking: bookingWithEnd },
-    });
-    return { success: true, conflicts: [], booking: bookingWithEnd };
+    const bookingConfirmed = { ...bookingWithEnd, confirmed: true, autoScheduled: false };
+    dispatch({ type: 'ADD_BOOKING', payload: { projectId, deliverableId, booking: bookingConfirmed } });
+    return { success: true, conflicts: [], booking: bookingConfirmed, wasRescheduled: false };
   }
 
   function addBookingForced(projectId, deliverableId, booking) {
     const endDate = booking.endDate || computeEndDate(booking.startDate, booking.durationDays);
-    const bookingWithEnd = { ...booking, endDate };
-    dispatch({
-      type: 'ADD_BOOKING',
-      payload: { projectId, deliverableId, booking: bookingWithEnd },
-    });
+    const bookingWithEnd = { ...booking, endDate, confirmed: true };
+    dispatch({ type: 'ADD_BOOKING', payload: { projectId, deliverableId, booking: bookingWithEnd } });
     return { success: true, booking: bookingWithEnd };
   }
 
@@ -288,7 +431,7 @@ export function AppProvider({ children }) {
     const bookingWithEnd = { ...booking, endDate };
 
     const conflicts = checkConflict(
-      allBookings,
+      confirmedBookings,
       booking.equipmentId,
       booking.startDate,
       endDate,
@@ -311,7 +454,7 @@ export function AppProvider({ children }) {
   }
 
   function getNextAvailableDate(equipmentId, requestedStart, durationDays, excludeBookingId = null) {
-    return findNextAvailableDate(allBookings, equipmentId, requestedStart, durationDays, excludeBookingId);
+    return findNextAvailableDate(confirmedBookings, equipmentId, requestedStart, durationDays, excludeBookingId);
   }
 
   function resetToSeedData() {
@@ -327,9 +470,13 @@ export function AppProvider({ children }) {
         equipmentMap,
         labsMap,
         allBookings,
+        confirmedBookings,
         addProject,
         updateProject,
         deleteProject,
+        transitionStatus,
+        previewConfirmBookings,
+        applyConfirmedBookings,
         addDeliverable,
         updateDeliverable,
         deleteDeliverable,

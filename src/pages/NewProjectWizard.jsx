@@ -6,7 +6,7 @@ import GanttChart from '../components/GanttChart.jsx';
 import EquipmentSelector from '../components/EquipmentSelector.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import { useApp } from '../context/AppContext.jsx';
-import { generateId, computeTotalCost, checkConflict, flattenBookings } from '../utils/scheduling.js';
+import { generateId, computeTotalCost, checkConflict, flattenBookings, flattenConfirmedBookings, findNextAvailableDate } from '../utils/scheduling.js';
 import { computeEndDate, formatDisplayDate, today, addDays } from '../utils/dates.js';
 
 const STEPS = [
@@ -54,11 +54,13 @@ function StepIndicator({ current }) {
 
 export default function NewProjectWizard() {
   const navigate = useNavigate();
-  const { addProject, equipmentMap, labsMap, allBookings } = useApp();
+  const { addProject, equipmentMap, labsMap, projects } = useApp();
+  // Use only confirmed bookings for conflict checking in wizard (tentative bookings don't block slots)
+  const allBookings = useMemo(() => flattenConfirmedBookings(projects), [projects]);
 
   const [step, setStep] = useState(1);
 
-  // Step 1
+  // Step 1 — always starts as Draft; status not user-selectable in wizard
   const [info, setInfo] = useState({ name: '', client: '', description: '', status: 'Draft' });
 
   // Step 2
@@ -94,37 +96,42 @@ export default function NewProjectWizard() {
     const form = getBookingForm(delId);
     if (!form.equipmentId || !form.startDate || !form.duration) return;
 
+    // Auto-schedule against confirmed bookings + already added in this wizard session
+    const tempBookings = deliverables.flatMap((d) => d.bookings);
+    const checkPool = [...allBookings, ...tempBookings];
+
+    let finalStart = form.startDate;
+    let wasRescheduled = false;
+
     const endDate = computeEndDate(form.startDate, Number(form.duration));
+    const conflictList = checkConflict(checkPool, form.equipmentId, form.startDate, endDate, null);
+
+    if (conflictList.length > 0) {
+      finalStart = findNextAvailableDate(checkPool, form.equipmentId, form.startDate, Number(form.duration), null);
+      wasRescheduled = finalStart !== form.startDate;
+    }
+
+    const finalEnd = computeEndDate(finalStart, Number(form.duration));
     const newBooking = {
       id: generateId('bkg'),
       equipmentId: form.equipmentId,
-      startDate: form.startDate,
-      endDate,
+      startDate: finalStart,
+      endDate: finalEnd,
       durationDays: Number(form.duration),
       notes: form.notes,
+      confirmed: false,
+      autoScheduled: wasRescheduled,
     };
 
-    // Check conflict against existing allBookings + already added bookings
-    const tempBookings = deliverables.flatMap((d) => d.bookings);
-    const conflictList = checkConflict(
-      [...allBookings, ...tempBookings],
-      form.equipmentId,
-      form.startDate,
-      endDate,
-      null
-    );
-
-    if (conflictList.length > 0) {
-      setConflicts((c) => ({ ...c, [`${delId}-new`]: conflictList }));
-      return;
+    if (wasRescheduled) {
+      setConflicts((c) => ({ ...c, [`${delId}-new`]: { rescheduled: true, originalStart: form.startDate, newStart: finalStart } }));
+    } else {
+      setConflicts((c) => { const nc = { ...c }; delete nc[`${delId}-new`]; return nc; });
     }
 
-    setConflicts((c) => { const nc = { ...c }; delete nc[`${delId}-new`]; return nc; });
     setDeliverables((ds) =>
       ds.map((d) =>
-        d.id === delId
-          ? { ...d, bookings: [...d.bookings, newBooking] }
-          : d
+        d.id === delId ? { ...d, bookings: [...d.bookings, newBooking] } : d
       )
     );
     setBookingForms((f) => ({ ...f, [delId]: { equipmentId: '', startDate: today(), duration: 5, notes: '' } }));

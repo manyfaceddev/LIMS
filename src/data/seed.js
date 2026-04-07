@@ -1,5 +1,6 @@
 export const seedData = {
   projects: [
+    // proj-001: Active — all bookings confirmed (equipment is actually reserved)
     {
       id: 'proj-001',
       name: 'Carbonate Reservoir Characterization Study',
@@ -24,16 +25,20 @@ export const seedData = {
               endDate: '2026-04-10',
               durationDays: 10,
               notes: 'Full core plug flooding sequence',
+              confirmed: true,
+              autoScheduled: false,
             },
             {
               id: 'bkg-001-01-02',
               deliverableId: 'del-001-01',
               projectId: 'proj-001',
               equipmentId: 'eq-01-03',
-              startDate: '2026-04-08',
-              endDate: '2026-04-12',
+              startDate: '2026-04-11',
+              endDate: '2026-04-15',
               durationDays: 5,
               notes: '3D imaging of selected plugs',
+              confirmed: true,
+              autoScheduled: false,
             },
           ],
         },
@@ -53,6 +58,8 @@ export const seedData = {
               endDate: '2026-04-21',
               durationDays: 7,
               notes: 'Full PVT study on recombined sample',
+              confirmed: true,
+              autoScheduled: false,
             },
             {
               id: 'bkg-001-02-02',
@@ -63,16 +70,20 @@ export const seedData = {
               endDate: '2026-04-24',
               durationDays: 3,
               notes: 'Gas composition analysis',
+              confirmed: true,
+              autoScheduled: false,
             },
           ],
         },
       ],
     },
+
+    // proj-002: Approved — tentative bookings (not yet confirmed/reserved)
     {
       id: 'proj-002',
       name: 'EOR Pilot Feasibility Study',
       client: 'BP Exploration',
-      status: 'Scheduled',
+      status: 'Approved',
       description: 'Evaluation of polymer flooding and wettability alteration EOR methods for a mature field targeting incremental recovery.',
       createdAt: '2026-03-20',
       deliverables: [
@@ -92,6 +103,8 @@ export const seedData = {
               endDate: '2026-05-08',
               durationDays: 8,
               notes: 'Core flooding with polymer at three concentrations',
+              confirmed: false,
+              autoScheduled: false,
             },
             {
               id: 'bkg-002-01-02',
@@ -102,6 +115,8 @@ export const seedData = {
               endDate: '2026-05-05',
               durationDays: 5,
               notes: 'Polymer rheology characterization',
+              confirmed: false,
+              autoScheduled: false,
             },
           ],
         },
@@ -121,6 +136,8 @@ export const seedData = {
               endDate: '2026-05-17',
               durationDays: 8,
               notes: 'Amott index measurements on aged plugs',
+              confirmed: false,
+              autoScheduled: false,
             },
             {
               id: 'bkg-002-02-02',
@@ -131,11 +148,15 @@ export const seedData = {
               endDate: '2026-05-16',
               durationDays: 5,
               notes: 'Centrifuge capillary pressure curves',
+              confirmed: false,
+              autoScheduled: false,
             },
           ],
         },
       ],
     },
+
+    // proj-003: Draft — tentative bookings
     {
       id: 'proj-003',
       name: 'Shale Gas Reservoir Evaluation',
@@ -160,6 +181,8 @@ export const seedData = {
               endDate: '2026-06-10',
               durationDays: 10,
               notes: 'Triaxial tests at three confining pressures',
+              confirmed: false,
+              autoScheduled: false,
             },
             {
               id: 'bkg-003-01-02',
@@ -170,6 +193,8 @@ export const seedData = {
               endDate: '2026-06-12',
               durationDays: 8,
               notes: 'Methane adsorption isotherms',
+              confirmed: false,
+              autoScheduled: false,
             },
           ],
         },

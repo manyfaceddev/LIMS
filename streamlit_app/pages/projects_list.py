@@ -25,7 +25,7 @@ def render_projects_list(projects):
     with col_status:
         status_filter = st.selectbox(
             "Filter by Status",
-            ["All", "Draft", "Scheduled", "Active", "Completed"],
+            ["All", "Draft", "Pending Approval", "Approved", "Active", "Completed", "Cancelled"],
         )
 
     # ── Filter Logic ───────────────────────────────────────────────────────────
@@ -100,9 +100,14 @@ def render_projects_list(projects):
     for p in projects:
         status_counts[p["status"]] = status_counts.get(p["status"], 0) + 1
 
-    cols = st.columns(4)
-    status_list = [("Draft", "#6c757d"), ("Scheduled", "#0d6efd"),
-                   ("Active", "#198754"), ("Completed", "#fd7e14")]
+    cols = st.columns(5)
+    status_list = [
+        ("Draft", "#6c757d"),
+        ("Pending Approval", "#fd7e14"),
+        ("Approved", "#0d6efd"),
+        ("Active", "#198754"),
+        ("Completed", "#6f42c1"),
+    ]
     for i, (s, color) in enumerate(status_list):
         count = status_counts.get(s, 0)
         cols[i].markdown(

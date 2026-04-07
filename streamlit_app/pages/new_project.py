@@ -7,7 +7,7 @@ import uuid
 from data.equipment import EQUIPMENT, EQUIPMENT_MAP
 from data.labs import LAB_MAP
 from utils.scheduling import (
-    flatten_bookings,
+    flatten_confirmed_bookings,
     check_conflict,
     find_next_available,
     compute_end_date,
@@ -83,13 +83,6 @@ def render_new_project(projects):
                 placeholder="Brief description of the project objectives...",
                 height=100,
             )
-            status = st.selectbox(
-                "Initial Status",
-                ["Draft", "Scheduled", "Active"],
-                index=["Draft", "Scheduled", "Active"].index(
-                    wizard_data.get("status", "Draft")
-                ),
-            )
             submitted = st.form_submit_button("Next →", type="primary")
 
         if submitted:
@@ -101,7 +94,7 @@ def render_new_project(projects):
                 st.session_state.wizard_data["name"] = name.strip()
                 st.session_state.wizard_data["client"] = client.strip()
                 st.session_state.wizard_data["description"] = description.strip()
-                st.session_state.wizard_data["status"] = status
+                st.session_state.wizard_data["status"] = "Draft"
                 st.session_state.wizard_step = 2
                 st.rerun()
 
@@ -173,7 +166,8 @@ def render_new_project(projects):
         st.subheader("Step 3: Schedule Equipment for Each Deliverable")
         st.caption("Select equipment, duration, and preferred start date. Conflicts will be auto-detected.")
 
-        all_system_bookings = flatten_bookings(st.session_state.projects)
+        # Only confirmed bookings block slots; wizard bookings are tentative
+        all_system_bookings = flatten_confirmed_bookings(st.session_state.projects)
         eq_options = {_eq_label(eq): eq["id"] for eq in EQUIPMENT}
         eq_labels = list(eq_options.keys())
 
@@ -267,6 +261,7 @@ def render_new_project(projects):
                     "duration_days": int(duration),
                     "notes": eq_notes,
                     "auto_scheduled": was_rescheduled,
+                    "confirmed": False,
                 })
                 wizard_data["equip_selections"][d_key] = selections
                 st.session_state.wizard_data = wizard_data
@@ -389,6 +384,7 @@ def render_new_project(projects):
                             "duration_days": s["duration_days"],
                             "notes": s.get("notes", ""),
                             "auto_scheduled": s.get("auto_scheduled", False),
+                            "confirmed": False,
                         })
                     new_deliverables.append({
                         "id": del_id,

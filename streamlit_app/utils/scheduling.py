@@ -33,6 +33,23 @@ def flatten_bookings(projects):
     return bookings
 
 
+def flatten_confirmed_bookings(projects):
+    """Return flat list of only confirmed=True bookings.
+    Used for conflict detection — tentative bookings do not block equipment.
+    """
+    bookings = []
+    for p in projects:
+        for d in p.get("deliverables", []):
+            for b in d.get("bookings", []):
+                if b.get("confirmed", False):
+                    bookings.append({
+                        **b,
+                        "project_name": p["name"],
+                        "deliverable_name": d["name"],
+                    })
+    return bookings
+
+
 def check_conflict(all_bookings, equipment_id, start_date, end_date, exclude_id=None):
     """Return list of conflicting bookings."""
     conflicts = []

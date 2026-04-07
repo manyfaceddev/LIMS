@@ -1,5 +1,6 @@
 def get_seed_projects():
     return [
+        # proj-001: Active — all bookings confirmed (equipment actually reserved)
         {
             "id": "proj-001",
             "name": "Carbonate Reservoir Characterization Study",
@@ -23,6 +24,7 @@ def get_seed_projects():
                             "end_date": "2026-04-10",
                             "duration_days": 10,
                             "notes": "Full core plug flooding",
+                            "confirmed": True,
                             "auto_scheduled": False,
                         },
                         {
@@ -30,10 +32,11 @@ def get_seed_projects():
                             "deliverable_id": "del-001-01",
                             "project_id": "proj-001",
                             "equipment_id": "eq-01-03",
-                            "start_date": "2026-04-08",
-                            "end_date": "2026-04-12",
+                            "start_date": "2026-04-11",
+                            "end_date": "2026-04-15",
                             "duration_days": 5,
                             "notes": "3D imaging of plugs",
+                            "confirmed": True,
                             "auto_scheduled": False,
                         },
                     ],
@@ -53,6 +56,7 @@ def get_seed_projects():
                             "end_date": "2026-04-21",
                             "duration_days": 7,
                             "notes": "Full PVT study",
+                            "confirmed": True,
                             "auto_scheduled": False,
                         },
                         {
@@ -64,17 +68,20 @@ def get_seed_projects():
                             "end_date": "2026-04-24",
                             "duration_days": 3,
                             "notes": "Gas composition analysis",
+                            "confirmed": True,
                             "auto_scheduled": False,
                         },
                     ],
                 },
             ],
         },
+
+        # proj-002: Approved — tentative bookings (approved but not yet confirmed)
         {
             "id": "proj-002",
             "name": "EOR Pilot Feasibility Study",
             "client": "BP Exploration",
-            "status": "Scheduled",
+            "status": "Approved",
             "description": "Evaluation of polymer flooding EOR methods.",
             "created_at": "2026-03-20",
             "deliverables": [
@@ -93,6 +100,7 @@ def get_seed_projects():
                             "end_date": "2026-05-08",
                             "duration_days": 8,
                             "notes": "Core flooding with polymer",
+                            "confirmed": False,
                             "auto_scheduled": False,
                         },
                         {
@@ -104,6 +112,7 @@ def get_seed_projects():
                             "end_date": "2026-05-05",
                             "duration_days": 5,
                             "notes": "Polymer rheology",
+                            "confirmed": False,
                             "auto_scheduled": False,
                         },
                     ],
@@ -123,12 +132,15 @@ def get_seed_projects():
                             "end_date": "2026-05-17",
                             "duration_days": 8,
                             "notes": "Amott index measurements",
+                            "confirmed": False,
                             "auto_scheduled": False,
                         },
                     ],
                 },
             ],
         },
+
+        # proj-003: Draft — tentative bookings
         {
             "id": "proj-003",
             "name": "Shale Gas Reservoir Evaluation",
@@ -152,6 +164,7 @@ def get_seed_projects():
                             "end_date": "2026-06-10",
                             "duration_days": 10,
                             "notes": "Triaxial tests",
+                            "confirmed": False,
                             "auto_scheduled": False,
                         },
                         {
@@ -163,6 +176,7 @@ def get_seed_projects():
                             "end_date": "2026-06-12",
                             "duration_days": 8,
                             "notes": "Methane adsorption",
+                            "confirmed": False,
                             "auto_scheduled": False,
                         },
                     ],

@@ -132,14 +132,6 @@ def render_equipment_calendar(projects):
             xref="x", yref="paper",
             line=dict(color="red", width=2, dash="dash"),
         )
-        fig.add_annotation(
-            x=today_str_cal, y=1,
-            xref="x", yref="paper",
-            text="Today",
-            showarrow=False,
-            yanchor="bottom",
-            font=dict(color="red", size=11),
-        )
         fig.update_layout(
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             margin=dict(l=10, r=10, t=80, b=10),

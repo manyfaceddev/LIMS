@@ -68,6 +68,24 @@ export function flattenBookings(projects) {
 }
 
 /**
+ * Collect only CONFIRMED (confirmed === true) bookings into a flat array.
+ * Used for conflict detection — tentative/draft bookings do not block equipment.
+ */
+export function flattenConfirmedBookings(projects) {
+  const bookings = [];
+  for (const project of projects) {
+    for (const deliverable of (project.deliverables || [])) {
+      for (const booking of (deliverable.bookings || [])) {
+        if (booking.confirmed === true) {
+          bookings.push({ ...booking, projectId: project.id, projectName: project.name });
+        }
+      }
+    }
+  }
+  return bookings;
+}
+
+/**
  * Given a list of projects and equipment list, return bookings enriched with
  * project color, equipment name, etc.
  */
