@@ -24,45 +24,72 @@ if "projects" not in st.session_state:
 if "current_page" not in st.session_state:
     st.session_state.current_page = "Dashboard"
 
+# Separate key for the radio widget — avoids coupling widget state to routing state.
+# "Project Detail" is not a radio option; when there, the radio shows "Projects".
+if "nav_page" not in st.session_state:
+    st.session_state.nav_page = "Dashboard"
+
+# Track what current_page was at the end of the previous run so we can detect
+# programmatic navigation (set by other pages before calling st.rerun()).
+if "_last_current_page" not in st.session_state:
+    st.session_state._last_current_page = "Dashboard"
+
+PAGE_OPTIONS = [
+    "Dashboard",
+    "Equipment Calendar",
+    "Projects",
+    "New Project",
+    "Labs & Equipment",
+]
+
 # ── Sidebar Navigation ─────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## ADRIC Scheduler")
     st.markdown("*Petroleum & Geoscience R&D*")
     st.markdown("---")
 
-    page_options = [
-        "Dashboard",
-        "Equipment Calendar",
-        "Projects",
-        "New Project",
-        "Labs & Equipment",
-    ]
+    # Detect programmatic navigation: current_page changed since last script run
+    # (i.e., another page set st.session_state.current_page and called st.rerun()).
+    programmatic_change = (
+        st.session_state.current_page != st.session_state._last_current_page
+    )
 
-    # Allow programmatic navigation while keeping the radio in sync
-    current_idx = page_options.index(st.session_state.current_page) \
-        if st.session_state.current_page in page_options else 0
+    if programmatic_change:
+        # Sync radio display to the new current_page.
+        # "Project Detail" is not in PAGE_OPTIONS — show "Projects" as selected instead.
+        nav_sync = (
+            st.session_state.current_page
+            if st.session_state.current_page in PAGE_OPTIONS
+            else "Projects"
+        )
+        st.session_state.nav_page = nav_sync
 
-    # If navigating to Project Detail, keep Projects highlighted in sidebar
-    sidebar_idx = current_idx
-    if st.session_state.current_page == "Project Detail":
-        sidebar_idx = page_options.index("Projects")
-
-    selected_page = st.radio(
-        "Navigate to",
-        page_options,
-        index=sidebar_idx,
+    # key= means Streamlit persists the user's click in session state across reruns,
+    # so it is never overridden by a recomputed index= value.
+    st.radio(
+        "Navigation",
+        PAGE_OPTIONS,
+        key="nav_page",
         label_visibility="collapsed",
     )
 
-    # Only update current_page from sidebar if user explicitly clicked
-    if selected_page != st.session_state.current_page and \
-            st.session_state.current_page != "Project Detail":
-        st.session_state.current_page = selected_page
-        if selected_page == "New Project":
-            st.session_state.wizard_step = 1
-            st.session_state.wizard_data = {}
+    nav = st.session_state.nav_page
+    current = st.session_state.current_page
 
-    # Sidebar info panel
+    # User clicked the sidebar (not a programmatic change).
+    # Exception: when on "Project Detail", the radio shows "Projects" as a visual alias —
+    # clicking "Projects" there is not a real navigation request.
+    if not programmatic_change and nav != current:
+        is_project_detail_alias = (current == "Project Detail" and nav == "Projects")
+        if not is_project_detail_alias:
+            st.session_state.current_page = nav
+            st.session_state._last_current_page = nav
+            if nav == "New Project":
+                st.session_state.wizard_step = 1
+                st.session_state.wizard_data = {}
+            st.rerun()
+
+    # ── Sidebar Info Panel ─────────────────────────────────────────────────────
     st.markdown("---")
     st.markdown(f"**Projects:** {len(st.session_state.projects)}")
 
@@ -84,36 +111,36 @@ with st.sidebar:
 
 # ── Page Routing ───────────────────────────────────────────────────────────────
 page = st.session_state.current_page
-projects = st.session_state.projects
-
-# Handle sidebar radio changes when NOT in project detail
-if selected_page != page and page != "Project Detail":
-    page = selected_page
-    st.session_state.current_page = selected_page
 
 if page == "Dashboard":
     from pages.dashboard import render_dashboard
-    render_dashboard(projects)
+    render_dashboard(st.session_state.projects)
 
 elif page == "Equipment Calendar":
     from pages.equipment_calendar import render_equipment_calendar
-    render_equipment_calendar(projects)
+    render_equipment_calendar(st.session_state.projects)
 
 elif page == "Projects":
     from pages.projects_list import render_projects_list
-    render_projects_list(projects)
+    render_projects_list(st.session_state.projects)
 
 elif page == "Project Detail":
     from pages.project_detail import render_project_detail
-    render_project_detail(projects)
+    render_project_detail(st.session_state.projects)
 
 elif page == "New Project":
     from pages.new_project import render_new_project
-    render_new_project(projects)
+    render_new_project(st.session_state.projects)
 
 elif page == "Labs & Equipment":
     from pages.labs_equipment import render_labs_equipment
-    render_labs_equipment(projects)
+    render_labs_equipment(st.session_state.projects)
 
 else:
     st.error(f"Unknown page: {page}")
+
+# ── Record current_page for next rerun's programmatic change detection ─────────
+# Must be at the bottom so it captures the final current_page for this run.
+# If a page calls st.rerun() early, this line is never reached — which is correct,
+# because _last_current_page should retain the previous run's value in that case.
+st.session_state._last_current_page = st.session_state.current_page
