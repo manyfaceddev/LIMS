@@ -166,7 +166,7 @@ def render_labs_equipment(projects):
                 else:
                     return "background-color: #d1e7dd; color: #0f5132; font-weight: bold"
 
-            styled_df = df.style.applymap(highlight_status, subset=["Status"])
+            styled_df = df.style.map(highlight_status, subset=["Status"])
             st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
     # ── Aggregate Utilization Table ────────────────────────────────────────────
